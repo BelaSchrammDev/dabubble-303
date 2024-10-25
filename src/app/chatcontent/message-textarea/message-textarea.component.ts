@@ -155,7 +155,7 @@ export class MessageTextareaComponent {
    */
   async addNewMessage() {
     if (this.ifMessageUploading || !this.allowSendMessage) return;
-    if (!this.userservice.isUserMemberOfCurrentChannel) {
+    if (!this.userservice.currentUser?.guest && !this.userservice.isUserMemberOfCurrentChannel) {
       this.showErrorWithDelay('Nur Channelmitglieder dürfen Nachrichten senden.');
       return;
     }
@@ -186,6 +186,7 @@ export class MessageTextareaComponent {
   private showErrorWithDelay(error: string, delay: number = 8000) {
     if (this.errorInfoTimeout) clearTimeout(this.errorInfoTimeout);
     this.errorInfo = error;
+    this._cdr.detectChanges();
     this.errorInfoTimeout = setTimeout(() => {
       this.errorInfo = '';
       this.errorInfoTimeout = null;
