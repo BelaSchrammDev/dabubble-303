@@ -27,12 +27,8 @@ import { Router } from '@angular/router';
 import { AvatarDirective } from '../../../utils/directives/avatar.directive';
 import { CleanupService } from '../../../utils/services/cleanup.service';
 import { ChooesavatarComponent } from '../../../start/chooesavatar/chooesavatar.component';
-import {
-  EmailAuthProvider,
-  getAuth,
-  reauthenticateWithCredential,
-  updateEmail,
-} from '@angular/fire/auth';
+import { ApiService } from '../../../utils/services/api.service';
+import { firstValueFrom } from 'rxjs';
 import { NavigationService } from '../../../utils/services/navigation.service';
 
 @Component({
@@ -74,6 +70,8 @@ export class ProfileComponent implements OnInit {
    * @param router - The `Router` instance for navigation.
    * @param cdRef - The `ChangeDetectorRef` instance for manual change detection.
    */
+  private api = inject(ApiService);
+
   constructor(
     public userservice: UsersService,
     public navigationService: NavigationService,
@@ -296,9 +294,8 @@ export class ProfileComponent implements OnInit {
   /**
    * Logs out the current user and navigates to the home page.
    */
-  logoutUser() {
-    this.cleanupservice.logoutUser();
-    this.router.navigate(['']);
+  async logoutUser() {
+    await this.cleanupservice.logoutUser();
   }
 
   /**
@@ -310,52 +307,14 @@ export class ProfileComponent implements OnInit {
    * @param currentPassword - The current password of the user, used for re-authentication.
    * @returns An empty string if the update is successful, or an error message if there is a problem.
    */
-  async updateCurrentUserEmail(
-    newEmail: string,
-    currentPassword: string
-  ): Promise<string> {
+  async updateCurrentUserEmail(newEmail: string, _currentPassword: string): Promise<string> {
     try {
-      await this.reauthenticate(currentPassword);
-      const auth = getAuth();
-      if (auth.currentUser && this.userservice.currentUser) {
-        await updateEmail(auth.currentUser, newEmail);
-        await this.userservice.sendEmailVerificationLink();
-        await this.userservice.updateCurrentUserDataOnFirestore({
-          email: newEmail,
-          emailVerified: false,
-        });
-        return '';
-      } else {
-        return 'No user to authenticate found';
-      }
+      if (!this.userservice.currentUser) return 'Kein Benutzer angemeldet.';
+      await this.userservice.updateCurrentUserDataOnFirestore({ email: newEmail, emailVerified: false });
+      await this.userservice.sendEmailVerificationLink();
+      return '';
     } catch (error) {
       return (error as Error).message;
-    }
-  }
-
-  /**
-   * Re-authenticates the current user with the provided password.
-   *
-   * This method is used to re-authenticate the user before performing sensitive operations, such as updating the user's email address. It retrieves the current user's email and password credential, and then calls the Firebase Authentication `reauthenticateWithCredential` method to re-authenticate the user.
-   *
-   * @param currentPassword - The current password of the user, used for re-authentication.
-   * @returns A Promise that resolves when the re-authentication is successful, or rejects with an error if the re-authentication fails.
-   * @throws {Error} If no authenticated user is found.
-   */
-  private async reauthenticate(currentPassword: string): Promise<void> {
-    try {
-      const user = getAuth().currentUser;
-      if (user && user.email) {
-        const credential = EmailAuthProvider.credential(
-          user.email,
-          currentPassword
-        );
-        await reauthenticateWithCredential(user, credential);
-      } else {
-        throw new Error('profile/Edit: No authenticated user found');
-      }
-    } catch (error) {
-      throw error;
     }
   }
 }

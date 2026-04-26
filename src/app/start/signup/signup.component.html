@@ -1,10 +1,10 @@
-<div id="infoPopover" popover>Konto erstellt!</div>
+<div id="infoPopover" popover>Konto erstellt! Bitte bestätige deine E-Mail-Adresse.</div>
 
 <section>
   @if(showChooseAvatarMask) {
   <div class="mask-div">
-    <span class="headline">Wähle deinen Avatar</span>
-    <app-chooseavatar (clickSuccess)="successChooseAvatar()"></app-chooseavatar>
+    <span class="headline">Konto erstellt!</span>
+    <p style="text-align:center; margin-top: 16px;">Wir haben dir eine E-Mail geschickt. Bitte bestätige deine E-Mail-Adresse, bevor du dich einloggst.</p>
   </div>
   } @else {
 

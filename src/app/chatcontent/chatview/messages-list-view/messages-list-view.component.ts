@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, inject, Input, OnDestroy, OnInit, ViewChild, } from '@angular/core';
 import { MessageComponent } from './message/message.component';
 import { MessageDateComponent } from './message-date/message-date.component';
-import { collection, Firestore, onSnapshot } from '@angular/fire/firestore';
+import { SocketService } from '../../../utils/services/socket.service';
+import { MessageService } from '../../../utils/services/message.service';
 import { Message } from '../../../shared/models/message.class';
 import { MessageGreetingComponent } from './message-greeting/message-greeting.component';
 import { CommonModule, Time } from '@angular/common';
@@ -28,12 +29,14 @@ import { ChannelService } from '../../../utils/services/channel.service';
   styleUrl: './messages-list-view.component.scss',
 })
 export class MessagesListViewComponent implements OnInit, OnDestroy {
-  private firestore = inject(Firestore);
+  private socketService = inject(SocketService);
+  private messageService = inject(MessageService);
   public navigationService = inject(NavigationService);
   public userService = inject(UsersService);
   public channelService = inject(ChannelService);
   private currentUserSubscription: any;
-  private unsubMessages: any = null;
+  private socketSubs: Subscription[] = [];
+  private currentMessagesPath: string | undefined;
   public messages: Message[] = [];
   public messagesDates: Date[] = [];
   public noMessagesAvailable = true;
@@ -161,41 +164,70 @@ export class MessagesListViewComponent implements OnInit, OnDestroy {
    * - Triggers change detection to update the view.
    * - Scrolls to the new message separator if a new collection is set.
    */
-  private subscribeMessages(messagesPath: string | undefined) {
-    if (this.unsubMessages) this.unsubMessages();
-    if (messagesPath) {
-      this.unsubMessages = onSnapshot(collection(this.firestore, messagesPath), (snapshot) => {
-        let newMessagesAdded = false;
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === 'added') {
-            newMessagesAdded = true;
-            this.messages.push(new Message(change.doc.data(), messagesPath, change.doc.id));
-          }
-          if (change.type === 'modified') {
-            const message = this.messages.find((message) => message.id === change.doc.id);
-            if (message) {
-              message.update(change.doc.data());
-              message.unread = this.getIfMessageIsUnread(message);
-            }
-          }
-          if (change.type === 'removed') {
-            this.messages = this.messages.filter((message) => message.id !== change.doc.id);
-          }
-        });
-        if (newMessagesAdded) {
-          this.messages.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-          this.newMessagesSeparatorIndex = -1;
-          this.messages.forEach((message, index) => { if (message.propertysUnSet) this.setPropertysForRendering(message, index); });
-          this._cdr.detectChanges();
-        }
-        if (this.newCollectionIsSet) {
-          this.newCollectionIsSet = false;
-          setTimeout(() => {
-            if (this.newMessageSeparator) this.newMessageSeparator.nativeElement.scrollIntoView({ behavior: 'auto', block: 'start' });
-          }, 500);
-        }
-      });
+  private async subscribeMessages(messagesPath: string | undefined): Promise<void> {
+    // Alte Socket-Subscriptions abräumen
+    this.socketSubs.forEach((s) => s.unsubscribe());
+    this.socketSubs = [];
+    this.currentMessagesPath = messagesPath;
+
+    if (!messagesPath) return;
+
+    // ── Raum betreten ──────────────────────────────────────────────────────
+    const channelMatch = messagesPath.match(/^channels\/([^/]+)/);
+    const chatMatch    = messagesPath.match(/^chats\/([^/]+)/);
+    if (channelMatch) this.socketService.joinChannel(channelMatch[1]);
+    if (chatMatch)    this.socketService.joinChat(chatMatch[1]);
+
+    // ── Initiale Nachrichten per HTTP laden ────────────────────────────────
+    const collectionObject = this.currentCollection;
+    if (collectionObject) {
+      const loaded = await this.messageService.getMessages(collectionObject);
+      this.messages = loaded;
+      this.messages.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      this.newMessagesSeparatorIndex = -1;
+      this.messages.forEach((m, i) => { if (m.propertysUnSet) this.setPropertysForRendering(m, i); });
+      this._cdr.detectChanges();
+      if (this.newCollectionIsSet) {
+        this.newCollectionIsSet = false;
+        setTimeout(() => {
+          this.newMessageSeparator?.nativeElement.scrollIntoView({ behavior: 'auto', block: 'start' });
+        }, 500);
+      }
     }
+
+    // ── Socket-Events für Echtzeit-Updates ────────────────────────────────
+    const newEvents = channelMatch ? ['channel-message:created'] : ['chat-message:created'];
+    const updEvents = channelMatch ? ['channel-message:updated'] : ['chat-message:updated'];
+    const delEvents = channelMatch ? ['channel-message:deleted'] : ['chat-message:deleted'];
+    const rxnEvents = channelMatch ? ['channel-message:reaction'] : ['chat-message:reaction'];
+
+    this.socketSubs.push(
+      this.socketService.on<any>(newEvents[0]).subscribe((data) => {
+        if (this.messages.find((m) => m.id === data.id)) return;
+        const msg = new Message(data, messagesPath, data.id);
+        msg.unread = this.getIfMessageIsUnread(msg);
+        this.messages.push(msg);
+        this.messages.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+        this.newMessagesSeparatorIndex = -1;
+        this.messages.forEach((m, i) => { if (m.propertysUnSet) this.setPropertysForRendering(m, i); });
+        this._cdr.detectChanges();
+      }),
+
+      this.socketService.on<any>(updEvents[0]).subscribe((data) => {
+        const msg = this.messages.find((m) => m.id === data.id);
+        if (msg) { msg.update(data); msg.unread = this.getIfMessageIsUnread(msg); this._cdr.detectChanges(); }
+      }),
+
+      this.socketService.on<any>(delEvents[0]).subscribe((data) => {
+        this.messages = this.messages.filter((m) => m.id !== data.id);
+        this._cdr.detectChanges();
+      }),
+
+      this.socketService.on<any>(rxnEvents[0]).subscribe((data) => {
+        const msg = this.messages.find((m) => m.id === data.id);
+        if (msg && data.emojies) { msg.update({ emojies: data.emojies }); this._cdr.detectChanges(); }
+      }),
+    );
   }
 
 
@@ -300,14 +332,8 @@ export class MessagesListViewComponent implements OnInit, OnDestroy {
    * - Unsubscribes from `currentUserSubscription` if it exists.
    */
   ngOnDestroy(): void {
-    if (this.unsubMessages) {
-      this.unsubMessages();
-    }
-    if (this.messageScrollSubscription) {
-      this.messageScrollSubscription.unsubscribe();
-    }
-    if (this.currentUserSubscription) {
-      this.currentUserSubscription.unsubscribe();
-    }
+    this.socketSubs.forEach((s) => s.unsubscribe());
+    this.messageScrollSubscription?.unsubscribe();
+    this.currentUserSubscription?.unsubscribe();
   }
 }

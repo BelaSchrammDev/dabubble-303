@@ -1,5 +1,4 @@
 import { AfterViewChecked, AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, HostListener, inject, Input, OnDestroy, OnInit, Output, ViewChild, } from '@angular/core';
-import { serverTimestamp } from '@angular/fire/firestore';
 import { NavigationService } from '../../../../utils/services/navigation.service';
 import { IReactions, Message, StoredAttachment } from '../../../../shared/models/message.class';
 import { MessageService } from '../../../../utils/services/message.service';
@@ -412,8 +411,6 @@ export class MessageComponent implements OnDestroy, AfterViewInit, AfterViewChec
     ) {
       this.messageService.updateMessage(this._messageData, {
         content: editorContent,
-        edited: true,
-        editedAt: serverTimestamp(),
       });
     }
     this.closeMessageEditor();

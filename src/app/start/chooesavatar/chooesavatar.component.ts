@@ -2,7 +2,8 @@ import { Component, EventEmitter, inject, Output } from '@angular/core';
 import { UsersService } from '../../utils/services/user.service';
 import { RouterLink, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { getDownloadURL, getStorage, ref, uploadBytes } from '@angular/fire/storage';
+import { ApiService } from '../../utils/services/api.service';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-chooseavatar',
@@ -20,7 +21,7 @@ export class ChooesavatarComponent {
   @Output() clickSuccess = new EventEmitter<void>();
 
   public userservice = inject(UsersService);
-  private storage = getStorage();
+  private api = inject(ApiService);
   private defaultAvatarPath: string = './assets/icons/start/profile-big.svg';
   private avatarPath: string = './assets/icons/start/choose-avatar/';
 
@@ -99,32 +100,24 @@ export class ChooesavatarComponent {
    * @param pictureFile - The picture file to be uploaded.
    * @returns A promise that resolves when the upload process is complete.
    */
-  async setAvatarPictureURLtoFirestore(pictureFile: any) {
+  async setAvatarPictureURLtoFirestore(pictureFile: any): Promise<void> {
     this.uploading = true;
-    const error = await this.uploadUserPictureToFirestore(this.userservice.currentUserID, pictureFile);
+    const error = await this.uploadProfilePicture(this.userservice.currentUserID, pictureFile);
     if (error) this.handleUploadErrors(error);
     this.uploading = false;
   }
 
-
-  /**
-   * Uploads a user's picture to Firestore storage and updates the user's data with the picture URL.
-   *
-   * @param userID - The unique identifier of the user.
-   * @param file - The file object representing the user's picture.
-   * @returns A promise that resolves to an empty string if successful, or an error message if an error occurs.
-   *
-   * @throws Will log an error message to the console if the upload or update fails.
-   */
-  async uploadUserPictureToFirestore(userID: string, file: any): Promise<string> {
-    const storageRef = ref(this.storage, 'profile-pictures/' + userID + '/userpicture.' + file.name.split('.').pop());
+  async uploadProfilePicture(userID: string, file: any): Promise<string> {
     try {
-      const snapshot = await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(snapshot.ref);
-      await this.userservice.updateCurrentUserDataOnFirestore({ pictureURL: url, avatar: 0 });
+      const formData = new FormData();
+      formData.append('file', file, file.name);
+      const response = await firstValueFrom(
+        this.api.postFormData<{ pictureURL: string }>(`/uploads/profile-picture`, formData)
+      );
+      await this.userservice.updateCurrentUserDataOnFirestore({ pictureURL: response.pictureURL, avatar: 0 });
       return '';
     } catch (error) {
-      console.error('userservice/storage: ', (error as Error).message);
+      console.error('chooesavatar: uploadProfilePicture', error);
       return (error as Error).message;
     }
   }

@@ -1,5 +1,14 @@
 import { BehaviorSubject } from 'rxjs';
 
+function toDate(value: any): Date {
+  if (!value) return new Date();
+  if (value instanceof Date) return value;
+  if (typeof value === 'string' || typeof value === 'number') return new Date(value);
+  if (typeof value.toDate === 'function') return value.toDate();
+  if (value.seconds !== undefined) return new Date(value.seconds * 1000);
+  return new Date();
+}
+
 /**
  * Represents the authentication provider type.
  * 
@@ -86,7 +95,7 @@ export class User {
     this._email = userObj.email ? userObj.email : '';
     this._avatar = userObj.avatar ? userObj.avatar : 1;
     this._online = userObj.online ? userObj.online : false;
-    this.signupAt = userObj.signupAt ? (userObj.signupAt as any).toDate() : new Date();
+    this.signupAt = toDate(userObj.signupAt);
     this.setSavePictureURL(userObj.pictureURL);
     this._chatIDs = userObj.chatIDs ? userObj.chatIDs : [];
     this._lastReadMessages = this.parseLRM(userObj.lastReadMessages);
@@ -125,10 +134,13 @@ export class User {
   }
 
 
-  private parseLRM(lrmString: string): LastReadMessage[] {
-    if (lrmString === undefined) return [];
-    const lrmArray = JSON.parse(lrmString);
-    return lrmArray;
+  private parseLRM(raw: any): LastReadMessage[] {
+    if (!raw) return [];
+    if (typeof raw === 'string') {
+      try { return JSON.parse(raw); } catch { return []; }
+    }
+    if (Array.isArray(raw)) return raw;
+    return [];
   }
 
 
@@ -150,7 +162,7 @@ export class User {
     if (data.avatar) this._avatar = data.avatar;
     if (data.online !== undefined) this._online = data.online;
     if (data.chatIDs) this._chatIDs = data.chatIDs;
-    if (data.lastReadMessages) this._lastReadMessages = this.parseLRM(data.lastReadMessages);
+    if (data.lastReadMessages !== undefined) this._lastReadMessages = this.parseLRM(data.lastReadMessages);
     this.setSavePictureURL(data.pictureURL);
     if (data.emailVerified !== undefined)
       this._emailVerified = data.emailVerified;

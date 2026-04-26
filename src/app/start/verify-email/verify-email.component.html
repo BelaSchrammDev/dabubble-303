@@ -1,0 +1,24 @@
+<div class="verify-container">
+  <div class="verify-card">
+    <img src="assets/icons/Logo.svg" alt="DABubble Logo" class="logo" />
+
+    @if (state === 'loading') {
+      <div class="spinner"></div>
+      <p>E-Mail wird bestätigt…</p>
+    }
+
+    @if (state === 'success') {
+      <img src="assets/icons/start/checkbox-checked.svg" alt="Erfolg" class="status-icon" />
+      <h2>E-Mail bestätigt!</h2>
+      <p>Du wirst in Kürze zur Anmeldung weitergeleitet.</p>
+      <button (click)="goToLogin()">Jetzt anmelden</button>
+    }
+
+    @if (state === 'error') {
+      <img src="assets/img/error.svg" alt="Fehler" class="status-icon error" />
+      <h2>Bestätigung fehlgeschlagen</h2>
+      <p>{{ errorMessage }}</p>
+      <button (click)="goToLogin()">Zurück zur Anmeldung</button>
+    }
+  </div>
+</div>
