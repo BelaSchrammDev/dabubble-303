@@ -113,23 +113,13 @@
           <input
             type="text"
             [(ngModel)]="searchQuery"
-            (input)="onSearchInput()"
-            (focus)="onFocus()"
-            (blur)="onBlur()"
-            placeholder="Search users..."
+            placeholder="Mitglieder suchen..."
           />
 
-          @for (suggestion of suggestions$ | async; track suggestion) {
-          <div class="suggestion-item" (click)="selectSuggestion(suggestion)">
-            @if(suggestion.type === 'user' &&
-            getUserFromSuggestion(suggestion)){
-            <div
-              appAvatar
-              [user]="getUserFromSuggestion(suggestion)!"
-              context="search"
-            ></div>
-            <div>{{ suggestion.text }}</div>
-            }
+          @for (user of filteredUsers; track user.id) {
+          <div class="suggestion-item" (click)="addUserToSelection(user)">
+            <div appAvatar [user]="user" context="search"></div>
+            <div>{{ user.name }}</div>
           </div>
           }
         </div>

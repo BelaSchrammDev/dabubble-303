@@ -38,17 +38,22 @@ export class Channel {
     this._description = data.description ?? '';
     this.createdAt = toDate(data.createdAt);
     this.creatorID = data.creatorID ?? '';
-    this._memberIDs = data.memberIDs ?? [];
+    this._memberIDs = this.extractMemberIDs(data);
     this.defaultChannel = data.defaultChannel ?? false;
     this._messagesCount = data.messagesCount ?? 0;
+  }
+
+  private extractMemberIDs(data: any): string[] {
+    if (Array.isArray(data.memberIDs) && data.memberIDs.length > 0) return data.memberIDs;
+    if (Array.isArray(data.members)) return data.members.map((m: any) => m.id ?? m);
+    return [];
   }
 
   update(data: any): void {
     if (data.name) this._name = data.name;
     if (data.description !== undefined) this._description = data.description;
-    if (data.memberIDs) this._memberIDs = data.memberIDs;
+    const ids = this.extractMemberIDs(data);
+    if (ids.length > 0) this._memberIDs = ids;
     if (data.messagesCount !== undefined) this._messagesCount = data.messagesCount;
-    // defaultChannel kann member-Liste für den Willkommens-Channel überschreiben
-    if (data.members) this._memberIDs = data.members;
   }
 }
