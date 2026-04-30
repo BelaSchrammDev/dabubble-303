@@ -51,12 +51,11 @@
   </section>
   <!-- MessageList -->
   <section class="chatview-content">
-    <div class="chat-messages-content" [ngClass]="{ 'no-messages': currentContext.messagesCount == 0 }">
-      @if(currentContext.messagesCount > 0){
+    <div class="chat-messages-content" [ngClass]="{ 'no-messages': showEmptyChannelState }">
       <app-messages-list-view [messagesPath]="navigationService.chatViewPath"
-        [currentObject]="currentContext"></app-messages-list-view>
-
-      }@else{
+        [currentObject]="currentContext"
+        (messagesLoaded)="onMessagesLoaded($event)"></app-messages-list-view>
+      @if(showEmptyChannelState){
       <section class="no-messages-ctn">
         @if(isAChannel){
         <div class="channel-name">

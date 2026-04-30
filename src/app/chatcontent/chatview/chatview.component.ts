@@ -48,6 +48,7 @@ import { ifChatWhitSelf } from '../../utils/firebase/utils';
 export class ChatviewComponent implements OnInit {
 
   @Input() set currentContext(value: Channel | Chat) {
+    this.showEmptyChannelState = false;
     this.channelSubject.next(value);
   }
 
@@ -61,6 +62,7 @@ export class ChatviewComponent implements OnInit {
   public isAChannel = false;
   public isAChat = false;
   public isDefaultChannel = true;
+  public showEmptyChannelState = false;
   public requiredAvatars: string[] = [];
 
   memberList = false;
@@ -95,15 +97,13 @@ export class ChatviewComponent implements OnInit {
    * is used to differency if user is currently in a channel or in a chat.
    */
   setContext() {
-    this.currentContext instanceof Channel && this.currentContext.defaultChannel
-      ? (this.isDefaultChannel = true)
-      : (this.isDefaultChannel = false);
-    this.currentContext instanceof Channel
-      ? (this.isAChannel = true)
-      : (this.isAChannel = false);
-    this.currentContext instanceof Chat
-      ? (this.isAChat = true)
-      : (this.isAChat = false);
+    this.isDefaultChannel = this.currentContext === this.channelService.defaultChannel;
+    this.isAChannel = this.currentContext instanceof Channel;
+    this.isAChat = this.currentContext instanceof Chat;
+  }
+
+  onMessagesLoaded(count: number): void {
+    this.showEmptyChannelState = count === 0;
   }
 
 

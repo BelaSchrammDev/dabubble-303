@@ -52,3 +52,14 @@ section {
 .color-change {
   animation: colorChange 1.5s linear alternate both;
 }
+
+.top-sentinel {
+  height: 1px;
+}
+
+.loading-indicator {
+  text-align: center;
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  color: #686868;
+}

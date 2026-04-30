@@ -93,7 +93,7 @@ export class User {
     this.id = userID;
     this._name = userObj.name ? userObj.name : '';
     this._email = userObj.email ? userObj.email : '';
-    this._avatar = userObj.avatar ? userObj.avatar : 1;
+    this._avatar = userObj.avatar !== undefined ? userObj.avatar : 1;
     this._online = userObj.online ? userObj.online : false;
     this.signupAt = toDate(userObj.signupAt);
     this.setSavePictureURL(userObj.pictureURL);
@@ -117,20 +117,12 @@ export class User {
    * @param pictureURL - The URL of the picture to be set. If undefined or an empty string, the default picture is set.
    */
   private setSavePictureURL(pictureURL: string | undefined): void {
-    if (pictureURL && pictureURL !== '') {
-      const img = new Image();
-      img.src = pictureURL;
-      img.onload = () => {
-        this._pictureURL = pictureURL;
-        this.changeUser.next(this);
-      };
-      img.onerror = () => {
-        this._pictureURL = undefined;
-        this._avatar = 0;
-      };
-    } else {
-      this._pictureURL = undefined;
-    }
+    if (pictureURL === undefined) return;
+    if (pictureURL === '') { this._pictureURL = undefined; return; }
+    const img = new Image();
+    img.src = pictureURL;
+    img.onload = () => { this._pictureURL = pictureURL; this.changeUser.next(this); };
+    img.onerror = () => { this._pictureURL = undefined; this.changeUser.next(this); };
   }
 
 
@@ -159,13 +151,14 @@ export class User {
   update(data: any): void {
     if (data.name) this._name = data.name;
     if (data.email) this._email = data.email;
-    if (data.avatar) this._avatar = data.avatar;
+    if (data.avatar !== undefined) this._avatar = data.avatar;
     if (data.online !== undefined) this._online = data.online;
     if (data.chatIDs) this._chatIDs = data.chatIDs;
     if (data.lastReadMessages !== undefined) this._lastReadMessages = this.parseLRM(data.lastReadMessages);
+    if (data.emailVerified !== undefined) this._emailVerified = data.emailVerified;
     this.setSavePictureURL(data.pictureURL);
-    if (data.emailVerified !== undefined)
-      this._emailVerified = data.emailVerified;
-    this.changeUser.next(this);
+    // If pictureURL is a real URL, changeUser.next fires async from setSavePictureURL (onload/onerror).
+    // Otherwise emit immediately.
+    if (!data.pictureURL) this.changeUser.next(this);
   }
 }

@@ -38,7 +38,11 @@ export class MessageService {
 
   // ── Nachrichten laden ─────────────────────────────────────────────────────
 
-  async getMessages(collectionObject: Channel | Chat | Message): Promise<Message[]> {
+  async getMessages(
+    collectionObject: Channel | Chat | Message,
+    limit?: number,
+    offset?: number,
+  ): Promise<{ messages: Message[]; total: number }> {
     let apiPath: string;
     let collPath: string;
 
@@ -49,17 +53,26 @@ export class MessageService {
       apiPath = `/chats/${collectionObject.id}/messages`;
       collPath = `chats/${collectionObject.id}/messages/`;
     } else {
-      // Thread-Antworten — messagePath z.B. 'channels/{id}/messages/{mid}'
       apiPath = `/${collectionObject.messagePath}/answers`;
       collPath = collectionObject.messagePath + '/answers/';
     }
 
+    if (limit !== undefined) {
+      apiPath += `?limit=${limit}&offset=${offset ?? 0}`;
+    }
+
     try {
-      const data = await firstValueFrom(this.api.get<any[]>(apiPath));
-      return data.map((m) => new Message(m, collPath, m.id));
+      const data = await firstValueFrom(this.api.get<any>(apiPath));
+      if (Array.isArray(data)) {
+        return { messages: data.map((m) => new Message(m, collPath, m.id)), total: data.length };
+      }
+      return {
+        messages: (data.messages as any[]).map((m) => new Message(m, collPath, m.id)),
+        total: data.total as number,
+      };
     } catch (error) {
       console.error('MessageService: getMessages', error);
-      return [];
+      return { messages: [], total: 0 };
     }
   }
 

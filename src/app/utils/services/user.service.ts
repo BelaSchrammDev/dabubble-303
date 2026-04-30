@@ -131,6 +131,7 @@ export class UsersService implements OnDestroy {
 
   async updateCurrentUserDataOnFirestore(userChangeData: Record<string, any>): Promise<void> {
     await this.updateUserDataOnFirestore(this.currentUserID, userChangeData);
+    this.currentUser?.update(userChangeData);
   }
 
   async updateUserDataOnFirestore(userID: string, userChangeData: Record<string, any>): Promise<void> {
