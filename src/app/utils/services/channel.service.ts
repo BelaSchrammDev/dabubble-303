@@ -93,23 +93,26 @@ export class ChannelService implements OnDestroy {
   private initSocketListeners(): void {
     this.socketSubs.push(
       this.socketService.on<any>('channel:created').subscribe((data) => {
-        if (!this.channels.find((c) => c.id === data.id)) {
-          const ch = new Channel(data, data.id);
+        const chData = data.channel ?? data;
+        if (!this.channels.find((c) => c.id === chData.id)) {
+          const ch = new Channel(chData, chData.id);
           this.channels.push(ch);
           if (this.updateAllowed) this.calculateUnreadMessagesCount(ch);
         }
       }),
 
       this.socketService.on<any>('channel:updated').subscribe((data) => {
-        const ch = this.channels.find((c) => c.id === data.id);
+        const chData = data.channel ?? data;
+        const ch = this.channels.find((c) => c.id === chData.id);
         if (ch) {
-          ch.update(data);
+          ch.update(chData);
           if (this.updateAllowed) this.calculateUnreadMessagesCount(ch);
         }
       }),
 
       this.socketService.on<any>('channel:deleted').subscribe((data) => {
-        this.channels = this.channels.filter((c) => c.id !== data.id);
+        const chId = data.channelId ?? data.id;
+        this.channels = this.channels.filter((c) => c.id !== chId);
       }),
 
       this.socketService.on<any>('chat:created').subscribe((data) => {
@@ -122,14 +125,16 @@ export class ChannelService implements OnDestroy {
 
       this.socketService.on<any>('channel-message:created').subscribe((data) => {
         const ch = this.channels.find((c) => c.id === data.channelId);
-        if (ch && data.creatorID !== this.userservice.currentUserID) {
+        const creatorID = data.message?.creatorID ?? data.creatorID;
+        if (ch && creatorID !== this.userservice.currentUserID) {
           ch.unreadMessagesCount = (ch.unreadMessagesCount || 0) + 1;
         }
       }),
 
       this.socketService.on<any>('chat-message:created').subscribe((data) => {
         const chat = this.chats.find((c) => c.id === data.chatId);
-        if (chat && data.creatorID !== this.userservice.currentUserID) {
+        const creatorID = data.message?.creatorID ?? data.creatorID;
+        if (chat && creatorID !== this.userservice.currentUserID) {
           chat.unreadMessagesCount = (chat.unreadMessagesCount || 0) + 1;
           this.updateActiveChatsStream();
         }
@@ -172,7 +177,8 @@ export class ChannelService implements OnDestroy {
     else return;
 
     try {
-      const messages = await firstValueFrom(this.api.get<any[]>(path));
+      const res = await firstValueFrom(this.api.get<any>(path));
+      const messages: any[] = Array.isArray(res) ? res : (res.messages ?? []);
       const unread = messages.filter(
         (m) => new Date(m.createdAt) > lastViewTime && m.creatorID !== this.userservice.currentUserID
       ).length;
