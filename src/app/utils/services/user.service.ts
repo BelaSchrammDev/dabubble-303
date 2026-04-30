@@ -116,7 +116,7 @@ export class UsersService implements OnDestroy {
   // ── User-Abfragen ──────────────────────────────────────────────────────────
 
   getAllUserIDs(): string[] {
-    return this.users.filter((u) => !u.guest).map((u) => u.id);
+    return this.users.filter((u) => !u.guest && !u.bot).map((u) => u.id);
   }
 
   getUserByID(id: string): User | undefined {

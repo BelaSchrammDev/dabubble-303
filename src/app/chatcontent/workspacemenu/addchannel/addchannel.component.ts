@@ -65,6 +65,7 @@ export class AddchannelComponent implements AfterViewInit, OnInit, OnDestroy {
     return this.userservice.users.filter(
       (u) =>
         !u.guest &&
+        !u.bot &&
         u.id !== this.userservice.currentUserID &&
         !this.selectedUsers.some((s) => s.id === u.id) &&
         (!query || u.name.toLowerCase().includes(query)),

@@ -73,6 +73,13 @@ export class MessagesListViewComponent implements OnInit, OnDestroy {
   }
 
   @Input() set messagesPath(value: string | undefined) {
+    // Alten Socket-Raum verlassen
+    if (this.currentMessagesPath) {
+      const oldChannelMatch = this.currentMessagesPath.match(/^channels\/([^/]+)/);
+      const oldChatMatch    = this.currentMessagesPath.match(/^chats\/([^/]+)/);
+      if (oldChannelMatch) this.socketService.leaveChannel(oldChannelMatch[1]);
+      if (oldChatMatch)    this.socketService.leaveChat(oldChatMatch[1]);
+    }
     this.messages = [];
     this.currentOffset = 0;
     this.totalMessages = 0;

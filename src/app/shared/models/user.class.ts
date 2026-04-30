@@ -47,6 +47,7 @@ export class User {
   readonly signupAt: Date;
   readonly provider: authProvider;
   readonly guest: boolean;
+  readonly bot: boolean;
 
   private _lastReadMessages: LastReadMessage[];
   get lastReadMessages(): LastReadMessage[] {
@@ -100,6 +101,7 @@ export class User {
     this._chatIDs = userObj.chatIDs ? userObj.chatIDs : [];
     this._lastReadMessages = this.parseLRM(userObj.lastReadMessages);
     this._emailVerified = userObj.emailVerified ? userObj.emailVerified : false;
+    this.bot = userObj.bot ?? false;
     if (userObj.guest) {
       this.guest = true;
       this.provider = 'guest';
